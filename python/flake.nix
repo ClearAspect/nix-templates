@@ -17,10 +17,30 @@
       default = pkgs.mkShell {
         packages = with pkgs; [
           python3
+          python3Packages.pip
+          python3Packages.virtualenv
           pyright
           black
           ruff
         ];
+
+        shellHook = ''
+          # Create venv if it doesn't exist
+          if [ ! -d .venv ]; then
+            echo "Creating virtual environment..."
+            python -m venv .venv
+          fi
+
+          # Activate venv
+          source .venv/bin/activate
+
+          # Install requirements if requirements.txt exists and venv is fresh
+          if [ -f requirements.txt ] && [ ! -f .venv/.installed ]; then
+            echo "Installing requirements..."
+            pip install -r requirements.txt
+            touch .venv/.installed
+          fi
+        '';
       };
     });
   };
