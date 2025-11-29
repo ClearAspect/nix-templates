@@ -16,30 +16,18 @@
       lib = pkgs.lib;
       isDarwin = pkgs.stdenv.isDarwin;
     in {
-      default = pkgs.mkShell {
-        packages = with pkgs;
-          [
+      default =
+        (pkgs.mkShell.override {
+          stdenv = pkgs.clangStdenv;
+        }) {
+          packages = with pkgs; [
+            clang-tools
             cmake
             gnumake
-          ]
-          ++ lib.optionals (!isDarwin) [
-            # Linux: full clang toolchain
-            clang
-            clang-tools
-          ]
-          ++ lib.optionals isDarwin [
-            # macOS: just the tools, not the compiler
-            clang-tools # gives you clangd, clang-format, etc.
+            valgrind
+            gdb
           ];
-
-        shellHook = lib.optionalString isDarwin ''
-          # Prioritize Apple's compiler toolchain
-          export PATH="/usr/bin:$PATH"
-
-          # Help clangd find Apple's SDK headers
-          export CPATH="$(xcrun --show-sdk-path)/usr/include"
-        '';
-      };
+        };
     });
   };
 }
