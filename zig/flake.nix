@@ -1,25 +1,47 @@
 {
-  description = "Zig development environment";
+  description = "An empty project that uses Zig.";
 
   inputs = {
-    nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    nixpkgs.url = "github:NixOS/nixpkgs/nixos-25.11";
+    flake-utils.url = "github:numtide/flake-utils";
+    zig.url = "github:mitchellh/zig-overlay";
+    zls.url = "github:zigtools/zls/0.16.0";
+
+    # Used for shell.nix
+    flake-compat = {
+      url = "github:edolstra/flake-compat";
+      flake = false;
+    };
   };
 
   outputs = {
     self,
     nixpkgs,
-  }: let
-    forAllSystems = nixpkgs.lib.genAttrs ["x86_64-linux" "aarch64-linux" "x86_64-darwin" "aarch64-darwin"];
-  in {
-    devShells = forAllSystems (system: let
-      pkgs = nixpkgs.legacyPackages.${system};
-    in {
-      default = pkgs.mkShell {
-        packages = with pkgs; [
-          zig
-          zls
-        ];
-      };
-    });
-  };
+    flake-utils,
+    ...
+  } @ inputs: let
+    overlays = [inputs.zig.overlays.default];
+
+    # Our supported systems are the same supported systems as the Zig binaries
+    systems = builtins.attrNames inputs.zig.packages;
+  in
+    flake-utils.lib.eachSystem systems (
+      system: let
+        pkgs = import nixpkgs {inherit overlays system;};
+        zig = pkgs.zigpkgs."0.16.0";
+        zls = inputs.zls.packages.${system}.zls.overrideAttrs (_: {
+          nativeBuildInputs = [zig];
+        });
+      in rec {
+        devShells.default = pkgs.mkShell {
+          nativeBuildInputs = with pkgs; [
+            zig
+            zls
+          ];
+        };
+
+        # For compatibility with older versions of the `nix` binary
+        devShell = self.devShells.${system}.default;
+      }
+    );
 }
